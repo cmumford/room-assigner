@@ -341,7 +341,7 @@ function balanceRooms(rooms) {
   return true;
 }
 
-function makeAndFillRooms(students) {
+function group(students) {
   const num_rooms = Math.ceil(students.length) / kRoomSize;
   var rooms = Array();
   var i;
@@ -357,4 +357,8 @@ function makeAndFillRooms(students) {
       break;
   }
   return rooms;
+}
+
+module.exports = {
+  Student, Stats, group
 }
