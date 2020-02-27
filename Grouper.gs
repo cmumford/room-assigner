@@ -1,4 +1,4 @@
-const kRoomSize = 6;
+const kGroupSize = 6;
 
 function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
@@ -20,7 +20,7 @@ class Student {
     this.wanted = Array();
     this.not_wanted = Array();
     this.row_idx = row_idx;
-    this.assigned_room = undefined;
+    this.assigned_group = undefined;
   }
 
   full_name() {
@@ -54,12 +54,12 @@ class Student {
     return this.wanted.length;
   }
 
-  // The number of satisfied wants in this students assigned room.
+  // The number of satisfied wants in this students assigned group.
   numMetWanted() {
-    if (!this.assigned_room) {
+    if (!this.assigned_group) {
       return 0;
     }
-    return this.numWantedBy(this.assigned_room.students);
+    return this.numWantedBy(this.assigned_group.students);
   }
 
   // The number of |students| that want this student.
@@ -74,12 +74,12 @@ class Student {
   }
 
   // The number of students not wanted by all students in the
-  // assigned room.
-  numNotWantedByRoom() {
-    if (!this.assigned_room) {
+  // assigned group.
+  numNotWantedByGroup() {
+    if (!this.assigned_group) {
       return 0;
     }
-    return this.numNotWantedBy(this.assigned_room.students);
+    return this.numNotWantedBy(this.assigned_group.students);
   }
 
   print() {
@@ -87,14 +87,14 @@ class Student {
   }
 }
 
-class Room {
+class Group {
   constructor(name) {
     this.name = name;
     this.students = Array();
   }
 
   isFull() {
-    return this.students.length >= kRoomSize;
+    return this.students.length >= kGroupSize;
   }
 
   isEmpty() {
@@ -103,21 +103,21 @@ class Room {
 
   addStudent(student) {
     this.students.push(student);
-    student.assigned_room = this;
+    student.assigned_group = this;
   }
 
   removeStudent(student) {
     for (var i = 0; i < this.students.length; i++) {
       if (this.students[i] === student) {
         this.students.splice(i, 1);
-        student.assigned_room = undefined;
+        student.assigned_group = undefined;
         return;
       }
     }
   }
 
   // Calculate info about the number of satisfied wanted for the
-  // students in this room.
+  // students in this group.
   // 
   // Will return an array with the index is the number of satisfied
   // wanted, and the count is the number of students of that count.
@@ -131,14 +131,14 @@ class Room {
   // * There are 0 students with 5 wanted met.
   // * There are 1 students with 6 wanted met.
   numMetWants() {
-    let counts = createArray(kRoomSize);
+    let counts = createArray(kGroupSize);
     this.students.forEach(student => {
       counts[student.numMetWanted()] += 1;
     });
     return counts;
   }
 
-  // The number of not-wanted votes for the students in this room.
+  // The number of not-wanted votes for the students in this group.
   numUnwanted() {
     let count = 0;
     this.students.forEach(student => {
@@ -147,33 +147,33 @@ class Room {
     return count;
   }
 
-  // Calculate the number of "problems" with this room.
+  // Calculate the number of "problems" with this group.
   calcMetric() {
     return this.numMetWants()[0] + this.numUnwanted();
   }
 }
 
 class Stats {
-  constructor(rooms) {
+  constructor(groups) {
     this.key_metric = 0;
-    this.num_rooms = rooms.length;
+    this.num_groups = groups.length;
     this.num_students = 0;
     this.num_wanted = Array();
-    for (var i = 0; i < kRoomSize; i++) {
+    for (var i = 0; i < kGroupSize; i++) {
       this.num_wanted.push(0);
     }
     this.num_zero_pref = 0;
     this.num_unwanted = 0;
 
-    rooms.forEach(room => {
-      this.num_students += room.students.length;
-      room.students.forEach(student => {
+    groups.forEach(group => {
+      this.num_students += group.students.length;
+      group.students.forEach(student => {
         if (student.numWanted()) {
           this.num_wanted[student.numMetWanted()] += 1;
         } else {
           this.num_zero_pref += 1;
         }
-        this.num_unwanted += student.numNotWantedByRoom();
+        this.num_unwanted += student.numNotWantedByGroup();
       });
     });
 
@@ -184,72 +184,72 @@ class Stats {
   print() {
     console.log("Statistics");
     console.log("==========");
-    console.log(`Number of rooms: ${this.num_rooms}`);
+    console.log(`Number of groups: ${this.num_groups}`);
     console.log(`Number of students: ${this.num_students}`);
     console.log("Number of satisfied wanted:");
     console.log(`  -: ${this.num_zero_pref} (no preference)`);
-    for (var i = 0; i < kRoomSize; i++) {
+    for (var i = 0; i < kGroupSize; i++) {
       let percent = 100 * this.num_wanted[i] / this.num_students;
       percent = Math.round(percent);
       console.log(`  ${i}: ${this.num_wanted[i]} (${percent}%)`);
     }
-    console.log(`Number of students with unwanted roomates: ${this.num_unwanted}`);
+    console.log(`Number of students with unwanted groupates: ${this.num_unwanted}`);
     console.log(`zero+!wanted: ${this.key_metric}`);
   }
 }
 
-function fillRooms(rooms, students) {
+function fillGroups(groups, students) {
   var s, r;
   for (s = 0; s < students.length; s++) {
-    let foundRoom = false;
-    for (r = 0; !foundRoom && r < rooms.length; r++) {
-      if (rooms[r].isFull())
+    let foundGroup = false;
+    for (r = 0; !foundGroup && r < groups.length; r++) {
+      if (groups[r].isFull())
         continue;
-      if (rooms[r].isEmpty()) {
-        rooms[r].addStudent(students[s]);
-        foundRoom = true;
+      if (groups[r].isEmpty()) {
+        groups[r].addStudent(students[s]);
+        foundGroup = true;
         break;
       }
 
       const numWanted = [1, 2];
-      // If nobody doesn't want me in the room and there are either
-      // 1 or 2 students in the room that I want then assign me.
-      if (students[s].numNotWantedBy(rooms[r].students) == 0 &&
+      // If nobody doesn't want me in the group and there are either
+      // 1 or 2 students in the group that I want then assign me.
+      if (students[s].numNotWantedBy(groups[r].students) == 0 &&
         numWanted.includes(
-          students[s].numWantedBy(rooms[r].students))) {
-        rooms[r].addStudent(students[s]);
-        foundRoom = true;
+          students[s].numWantedBy(groups[r].students))) {
+        groups[r].addStudent(students[s]);
+        foundGroup = true;
         break;
       }
     }
 
-    if (foundRoom)
+    if (foundGroup)
       continue;
 
-    // Couldn't find a preference. Add to an empty room and hopefully
+    // Couldn't find a preference. Add to an empty group and hopefully
     // one of the un-added students will want this student.
-    for (r = 0; r < rooms.length; r++) {
-      if (!rooms[r].isFull()) {
-        rooms[r].addStudent(students[s]);
-        foundRoom = true;
+    for (r = 0; r < groups.length; r++) {
+      if (!groups[r].isFull()) {
+        groups[r].addStudent(students[s]);
+        foundGroup = true;
         break;
       }
     }
   }
 }
 
-// Find all students that can leave a room where leaving will not
+// Find all students that can leave a group where leaving will not
 // negatively impact the other students (but may impact the leaver).
-function findLeavers(rooms) {
+function findLeavers(groups) {
   let leavers = Array();
-  for (var r = 0; r < rooms.length; r++) {
-    if (rooms[r].students.length < 2) {
+  for (var r = 0; r < groups.length; r++) {
+    if (groups[r].students.length < 2) {
       continue;
     }
 
-    for (var s = 0; s < rooms[r].students.length; s++) {
-      let student = rooms[r].students[s];
-      if (student.numWantsMe(rooms[r].students) < 2) {
+    for (var s = 0; s < groups[r].students.length; s++) {
+      let student = groups[r].students[s];
+      if (student.numWantsMe(groups[r].students) < 2) {
         // Doesn't satisfy any other students wants, so leaving
         // won't negatively impact others.
         leavers.push(student);
@@ -258,8 +258,8 @@ function findLeavers(rooms) {
       // If others want me, but also have at least one other of their
       // wanted list then I can leave.
       let can_leave = true;
-      for (var os = 0; os < rooms[r].students.length; os++) {
-        let other_student = rooms[r].students[os];
+      for (var os = 0; os < groups[r].students.length; os++) {
+        let other_student = groups[r].students[os];
         if (other_student == student) {
           continue;
         }
@@ -277,32 +277,32 @@ function findLeavers(rooms) {
   return leavers;
 }
 
-function swapRooms(student_a, student_b) {
-  let room_a = student_a.assigned_room;
-  let room_b = student_b.assigned_room;
+function swapGroups(student_a, student_b) {
+  let group_a = student_a.assigned_group;
+  let group_b = student_b.assigned_group;
 
-  room_a.removeStudent(student_a);
-  room_b.removeStudent(student_b);
+  group_a.removeStudent(student_a);
+  group_b.removeStudent(student_b);
 
-  room_a.addStudent(student_b);
-  room_b.addStudent(student_a);
+  group_a.addStudent(student_b);
+  group_b.addStudent(student_a);
 }
 
 function calcSwapImprovement(student_a, student_b) {
-  let room_a_metric_before = student_a.assigned_room.calcMetric();
-  let room_b_metric_before = student_b.assigned_room.calcMetric();
+  let group_a_metric_before = student_a.assigned_group.calcMetric();
+  let group_b_metric_before = student_b.assigned_group.calcMetric();
 
-  swapRooms(student_a, student_b);
+  swapGroups(student_a, student_b);
 
-  let room_a_metric_after = student_a.assigned_room.calcMetric();
-  let room_b_metric_after = student_b.assigned_room.calcMetric();
+  let group_a_metric_after = student_a.assigned_group.calcMetric();
+  let group_b_metric_after = student_b.assigned_group.calcMetric();
 
-  swapRooms(student_a, student_b);
+  swapGroups(student_a, student_b);
 
   // The metric is the number of problems, so the improvement
   // calculation is reversed.
-  return room_a_metric_before - room_a_metric_after +
-    room_b_metric_before - room_b_metric_after;
+  return group_a_metric_before - group_a_metric_after +
+    group_b_metric_before - group_b_metric_after;
 }
 
 function bestSwap(student, leavers) {
@@ -313,7 +313,7 @@ function bestSwap(student, leavers) {
     if (student == leaver) {
       continue;
     }
-    if (student.assigned_room == leaver.assigned_room) {
+    if (student.assigned_group == leaver.assigned_group) {
       continue;
     }
     let measure = calcSwapImprovement(student, leaver);
@@ -325,8 +325,8 @@ function bestSwap(student, leavers) {
   return best
 }
 
-function balanceRooms(rooms) {
-  leavers = findLeavers(rooms);
+function balanceGroups(groups) {
+  leavers = findLeavers(groups);
   if (leavers.length == 0) {
     return false;
   }
@@ -337,28 +337,28 @@ function balanceRooms(rooms) {
     return false;
   }
 
-  swapRooms(leaver, swap);
+  swapGroups(leaver, swap);
   return true;
 }
 
-function group(students) {
-  const num_rooms = Math.ceil(students.length) / kRoomSize;
-  var rooms = Array();
+function createGroups(students) {
+  const num_groups = Math.ceil(students.length) / kGroupSize;
+  var groups = Array();
   var i;
-  for (i = 0; i < num_rooms; i++) {
-    rooms.push(new Room("Room " + (i + 1)));
+  for (i = 0; i < num_groups; i++) {
+    groups.push(new Group("Group " + (i + 1)));
   }
 
-  fillRooms(rooms, students);
+  fillGroups(groups, students);
   for (i = 0; i < 2000; i++) {
-    balanceRooms(rooms);
-    stats = new Stats(rooms);
+    balanceGroups(groups);
+    stats = new Stats(groups);
     if (stats.key_metric == 0)
       break;
   }
-  return rooms;
+  return groups;
 }
 
 module.exports = {
-  Student, Stats, group
+  Student, Stats, createGroups
 }
