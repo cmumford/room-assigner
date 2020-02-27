@@ -8,7 +8,8 @@ const kNotWantedCol = 14;
 
 
 function layoutRooms(students, sheet) {
-  let rooms = makeAndFillRooms(students);
+  let grouper = new Grouper();
+  let rooms = grouper.group(students);
   let stats = new Stats(rooms);
 
   sheet.clear();

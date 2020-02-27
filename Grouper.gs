@@ -198,167 +198,169 @@ class Stats {
   }
 }
 
-function fillGroups(groups, students) {
-  var s, r;
-  for (s = 0; s < students.length; s++) {
-    let foundGroup = false;
-    for (r = 0; !foundGroup && r < groups.length; r++) {
-      if (groups[r].isFull())
-        continue;
-      if (groups[r].isEmpty()) {
-        groups[r].addStudent(students[s]);
-        foundGroup = true;
-        break;
-      }
-
-      const numWanted = [1, 2];
-      // If nobody doesn't want me in the group and there are either
-      // 1 or 2 students in the group that I want then assign me.
-      if (students[s].numNotWantedBy(groups[r].students) == 0 &&
-        numWanted.includes(
-          students[s].numWantedBy(groups[r].students))) {
-        groups[r].addStudent(students[s]);
-        foundGroup = true;
-        break;
-      }
-    }
-
-    if (foundGroup)
-      continue;
-
-    // Couldn't find a preference. Add to an empty group and hopefully
-    // one of the un-added students will want this student.
-    for (r = 0; r < groups.length; r++) {
-      if (!groups[r].isFull()) {
-        groups[r].addStudent(students[s]);
-        foundGroup = true;
-        break;
-      }
-    }
-  }
-}
-
-// Find all students that can leave a group where leaving will not
-// negatively impact the other students (but may impact the leaver).
-function findLeavers(groups) {
-  let leavers = Array();
-  for (var r = 0; r < groups.length; r++) {
-    if (groups[r].students.length < 2) {
-      continue;
-    }
-
-    for (var s = 0; s < groups[r].students.length; s++) {
-      let student = groups[r].students[s];
-      if (student.numWantsMe(groups[r].students) < 2) {
-        // Doesn't satisfy any other students wants, so leaving
-        // won't negatively impact others.
-        leavers.push(student);
-        continue;
-      }
-      // If others want me, but also have at least one other of their
-      // wanted list then I can leave.
-      let can_leave = true;
-      for (var os = 0; os < groups[r].students.length; os++) {
-        let other_student = groups[r].students[os];
-        if (other_student == student) {
+class Grouper {
+  _fillGroups(groups, students) {
+    var s, r;
+    for (s = 0; s < students.length; s++) {
+      let foundGroup = false;
+      for (r = 0; !foundGroup && r < groups.length; r++) {
+        if (groups[r].isFull())
           continue;
+        if (groups[r].isEmpty()) {
+          groups[r].addStudent(students[s]);
+          foundGroup = true;
+          break;
         }
-        if (other_student.wanted.includes(student) &&
-          other_student.numMetWanted() > 1) {
-          can_leave = false;
+
+        const numWanted = [1, 2];
+        // If nobody doesn't want me in the group and there are either
+        // 1 or 2 students in the group that I want then assign me.
+        if (students[s].numNotWantedBy(groups[r].students) == 0 &&
+          numWanted.includes(
+            students[s].numWantedBy(groups[r].students))) {
+          groups[r].addStudent(students[s]);
+          foundGroup = true;
           break;
         }
       }
-      if (can_leave) {
-        leavers.push(student);
+
+      if (foundGroup)
+        continue;
+
+      // Couldn't find a preference. Add to an empty group and hopefully
+      // one of the un-added students will want this student.
+      for (r = 0; r < groups.length; r++) {
+        if (!groups[r].isFull()) {
+          groups[r].addStudent(students[s]);
+          foundGroup = true;
+          break;
+        }
       }
     }
   }
-  return leavers;
-}
 
-function swapGroups(student_a, student_b) {
-  let group_a = student_a.assigned_group;
-  let group_b = student_b.assigned_group;
+  // Find all students that can leave a group where leaving will not
+  // negatively impact the other students (but may impact the leaver).
+  _findLeavers(groups) {
+    let leavers = Array();
+    for (var r = 0; r < groups.length; r++) {
+      if (groups[r].students.length < 2) {
+        continue;
+      }
 
-  group_a.removeStudent(student_a);
-  group_b.removeStudent(student_b);
-
-  group_a.addStudent(student_b);
-  group_b.addStudent(student_a);
-}
-
-function calcSwapImprovement(student_a, student_b) {
-  let group_a_metric_before = student_a.assigned_group.calcMetric();
-  let group_b_metric_before = student_b.assigned_group.calcMetric();
-
-  swapGroups(student_a, student_b);
-
-  let group_a_metric_after = student_a.assigned_group.calcMetric();
-  let group_b_metric_after = student_b.assigned_group.calcMetric();
-
-  swapGroups(student_a, student_b);
-
-  // The metric is the number of problems, so the improvement
-  // calculation is reversed.
-  return group_a_metric_before - group_a_metric_after +
-    group_b_metric_before - group_b_metric_after;
-}
-
-function bestSwap(student, leavers) {
-  let best_measure = -1;
-  let best = null;
-  for (var i = 0; i < leavers.length; i++) {
-    let leaver = leavers[i];
-    if (student == leaver) {
-      continue;
+      for (var s = 0; s < groups[r].students.length; s++) {
+        let student = groups[r].students[s];
+        if (student.numWantsMe(groups[r].students) < 2) {
+          // Doesn't satisfy any other students wants, so leaving
+          // won't negatively impact others.
+          leavers.push(student);
+          continue;
+        }
+        // If others want me, but also have at least one other of their
+        // wanted list then I can leave.
+        let can_leave = true;
+        for (var os = 0; os < groups[r].students.length; os++) {
+          let other_student = groups[r].students[os];
+          if (other_student == student) {
+            continue;
+          }
+          if (other_student.wanted.includes(student) &&
+            other_student.numMetWanted() > 1) {
+            can_leave = false;
+            break;
+          }
+        }
+        if (can_leave) {
+          leavers.push(student);
+        }
+      }
     }
-    if (student.assigned_group == leaver.assigned_group) {
-      continue;
+    return leavers;
+  }
+
+  _swapGroups(student_a, student_b) {
+    let group_a = student_a.assigned_group;
+    let group_b = student_b.assigned_group;
+
+    group_a.removeStudent(student_a);
+    group_b.removeStudent(student_b);
+
+    group_a.addStudent(student_b);
+    group_b.addStudent(student_a);
+  }
+
+  _calcSwapImprovement(student_a, student_b) {
+    let group_a_metric_before = student_a.assigned_group.calcMetric();
+    let group_b_metric_before = student_b.assigned_group.calcMetric();
+
+    this._swapGroups(student_a, student_b);
+
+    let group_a_metric_after = student_a.assigned_group.calcMetric();
+    let group_b_metric_after = student_b.assigned_group.calcMetric();
+
+    this._swapGroups(student_a, student_b);
+
+    // The metric is the number of problems, so the improvement
+    // calculation is reversed.
+    return group_a_metric_before - group_a_metric_after +
+      group_b_metric_before - group_b_metric_after;
+  }
+
+  _bestSwap(student, leavers) {
+    let best_measure = -1;
+    let best = null;
+    for (var i = 0; i < leavers.length; i++) {
+      let leaver = leavers[i];
+      if (student == leaver) {
+        continue;
+      }
+      if (student.assigned_group == leaver.assigned_group) {
+        continue;
+      }
+      let measure = this._calcSwapImprovement(student, leaver);
+      if (measure > best_measure) {
+        best_measure = measure;
+        best = leaver;
+      }
     }
-    let measure = calcSwapImprovement(student, leaver);
-    if (measure > best_measure) {
-      best_measure = measure;
-      best = leaver;
+    return best
+  }
+
+  _balanceGroups(groups) {
+    let leavers = this._findLeavers(groups);
+    if (leavers.length == 0) {
+      return false;
     }
-  }
-  return best
-}
+    let idx = getRandomInt(leavers.length);
+    let leaver = leavers[idx];
+    let swap = this._bestSwap(leaver, leavers)
+    if (!swap) {
+      return false;
+    }
 
-function balanceGroups(groups) {
-  leavers = findLeavers(groups);
-  if (leavers.length == 0) {
-    return false;
-  }
-  let idx = getRandomInt(leavers.length);
-  let leaver = leavers[idx];
-  swap = bestSwap(leaver, leavers)
-  if (!swap) {
-    return false;
+    this._swapGroups(leaver, swap);
+    return true;
   }
 
-  swapGroups(leaver, swap);
-  return true;
-}
+  group(students) {
+    const num_groups = Math.ceil(students.length) / kGroupSize;
+    var groups = Array();
+    var i;
+    for (i = 0; i < num_groups; i++) {
+      groups.push(new Group("Group " + (i + 1)));
+    }
 
-function createGroups(students) {
-  const num_groups = Math.ceil(students.length) / kGroupSize;
-  var groups = Array();
-  var i;
-  for (i = 0; i < num_groups; i++) {
-    groups.push(new Group("Group " + (i + 1)));
+    this._fillGroups(groups, students);
+    for (i = 0; i < 2000; i++) {
+      this._balanceGroups(groups);
+      let stats = new Stats(groups);
+      if (stats.key_metric == 0)
+        break;
+    }
+    return groups;
   }
-
-  fillGroups(groups, students);
-  for (i = 0; i < 2000; i++) {
-    balanceGroups(groups);
-    stats = new Stats(groups);
-    if (stats.key_metric == 0)
-      break;
-  }
-  return groups;
 }
 
 module.exports = {
-  Student, Stats, createGroups
+  Student, Stats, Grouper
 }

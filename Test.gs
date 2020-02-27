@@ -29,7 +29,8 @@ function handleStudents(students) {
       room_students.push(students[i]);
     }
   }
-  rooms = assigner.createGroups(room_students)
+  grouper = new assigner.Grouper()
+  rooms = grouper.group(room_students)
   writeRooms('males.txt', rooms);
   stats = new assigner.Stats(rooms);
   stats.print();
